@@ -1,0 +1,13 @@
+[package]
+authors = ["Virghileanu Teodor <teo.virghi@yahoo.ro>"]
+description = "An utility library to load sounds"
+edition = "2021"
+homepage = "https://github.com/GaussianWonder"
+name = "audio-reader"
+version = "0.0.1"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+symphonia = "0.5.3"
