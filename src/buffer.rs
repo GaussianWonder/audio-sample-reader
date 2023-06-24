@@ -17,8 +17,8 @@ pub struct StereoBuffer {
 impl StereoBuffer {
     pub fn new(channel_size: usize) -> Self {
         Self {
-            left: Vec::<f32>::with_capacity(channel_size),
-            right: Vec::<f32>::with_capacity(channel_size),
+            left: StereoBuffer::buffer_with_size(channel_size),
+            right: StereoBuffer::buffer_with_size(channel_size),
             channel_size,
             samples_written: 0,
         }
@@ -215,7 +215,7 @@ impl StereoBuffer {
     /// # Panics
     ///
     /// Panics if the input buffer sizes differ or if the capacity_left is not enough to swap the input buffer
-    pub fn swap_from_vec(&mut self, buffer: &mut Vec<Vec<f32>>) {
+    pub fn swap_with_vec(&mut self, buffer: &mut Vec<Vec<f32>>) {
         assert!(buffer.len() == 2, "Input buffer must have 2 channels");
 
         assert!(
