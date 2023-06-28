@@ -169,3 +169,33 @@ fn pad_partial_buffer_with_silence() {
     assert!(buffer.left[10..].iter().all(|&x| x == 0f32));
     assert!(buffer.right[10..].iter().all(|&x| x == 0f32));
 }
+
+#[test]
+fn reserve_extra_samples() {
+    let mut buffer = StereoBuffer::new(10);
+    buffer.reserve(90);
+
+    assert_eq!(
+        buffer.total_capacity(),
+        buffer.right.capacity() + buffer.left.capacity()
+    );
+    assert_eq!(buffer.left.capacity(), buffer.right.capacity());
+    assert_eq!(buffer.left.len(), buffer.right.len());
+}
+
+#[test]
+fn trim_buffer() {
+    let mut buffer = StereoBuffer::new(10);
+    buffer.pad_silence();
+    buffer.reserve_exact(90);
+
+    assert_eq!(buffer.total_capacity(), 2 * 100);
+    assert_eq!(buffer.left.capacity(), buffer.right.capacity());
+    assert_eq!(buffer.left.len(), buffer.right.len());
+
+    buffer.trim();
+
+    assert_eq!(buffer.total_capacity(), 2 * 10);
+    assert_eq!(buffer.left.capacity(), buffer.right.capacity());
+    assert_eq!(buffer.left.len(), buffer.right.len());
+}

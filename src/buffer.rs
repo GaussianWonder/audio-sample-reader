@@ -1,5 +1,5 @@
 use symphonia::core::{
-    audio::{AudioBuffer, AudioBufferRef, Layout, Signal, SignalSpec},
+    audio::{AudioBuffer, AudioBufferRef, Layout, Signal},
     conv::IntoSample,
     sample::Sample,
 };
@@ -33,6 +33,41 @@ impl StereoBuffer {
             channel_size,
             samples_written: 0,
         }
+    }
+
+    /// Reserve additional space in this buffer
+    pub fn reserve(&mut self, additional: usize) {
+        // May reserve a number >= than 'additional'
+        self.left.reserve(additional);
+        self.right
+            .reserve_exact(self.left.capacity() - self.right.capacity());
+
+        unsafe {
+            self.left.set_len(self.left.capacity());
+            self.right.set_len(self.right.capacity());
+        }
+
+        self.channel_size = self.left.len();
+    }
+
+    /// Reserve this exact additional space in this buffer
+    pub fn reserve_exact(&mut self, additional: usize) {
+        self.left.reserve_exact(additional);
+        self.right.reserve_exact(additional);
+
+        unsafe {
+            self.left.set_len(self.left.capacity());
+            self.right.set_len(self.right.capacity());
+        }
+
+        self.channel_size = self.left.len();
+    }
+
+    /// Trim the buffer capacity to the current written capacity
+    pub fn trim(&mut self) {
+        self.left.resize(self.samples_written, 0f32);
+        self.right.resize(self.samples_written, 0f32);
+        self.channel_size = self.left.len();
     }
 
     pub fn has_content(&self) -> bool {
