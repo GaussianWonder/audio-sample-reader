@@ -1,20 +1,31 @@
-use symphonia::core::audio::{AudioBuffer, Layout, Signal, SignalSpec};
+use symphonia::core::{
+    audio::{AudioBuffer, AudioBufferRef, Layout, Signal, SignalSpec},
+    conv::IntoSample,
+    sample::Sample,
+};
 
 /// Opinionated buffer for inner operations
 ///
 /// Values exceeding the capacity of samples_written are considered to be uninitialized and non deterministic.
 pub struct StereoBuffer {
-    /// 1 or 2 channels filled with 'channel_size'd vectors of f32 samples.
     pub left: Vec<f32>,
     pub right: Vec<f32>,
-    /// This is used to determine the size of the buffer.
-    /// Size of each channel in the buffer, in samples.
     channel_size: usize,
-    /// The location from which copy occurs in this buffer
+    /// The location from which copy and swap occurs in this buffer
     samples_written: usize,
 }
 
 impl StereoBuffer {
+    /// Unasable buffer, panics when it is used
+    pub fn _0() -> Self {
+        Self {
+            left: vec![],
+            right: vec![],
+            channel_size: 0,
+            samples_written: 0,
+        }
+    }
+
     pub fn new(channel_size: usize) -> Self {
         Self {
             left: StereoBuffer::buffer_with_size(channel_size),
@@ -24,7 +35,14 @@ impl StereoBuffer {
         }
     }
 
-    /// Total buffer capacity: 2 * channel_size
+    pub fn has_content(&self) -> bool {
+        return self.samples_written > 0;
+    }
+
+    pub fn written(&self) -> usize {
+        return self.samples_written;
+    }
+
     pub fn total_capacity(&self) -> usize {
         self.channel_size * 2
     }
@@ -112,12 +130,16 @@ impl StereoBuffer {
         self.samples_written += sample_count;
     }
 
-    /// Similar to copy_from_slices, but only for one channel and it does not panic,
-    /// instead it returns the overflow as a new StereoBuffer
-    pub fn copy_slice_mono(&mut self, buf: &[f32]) -> Option<StereoBuffer> {
+    /// Similar to copy_from_slices, but only for one channel.
+    ///
+    /// It does not panic when copying to internal buffers,
+    /// instead it tries to swap into the given remainder buffer, which can panic if not big enough.
+    ///
+    /// The remainder buffer is not cleared, but it is filled when remainder samples exists
+    pub fn copy_slice_mono(&mut self, buf: &[f32], remainder: &mut StereoBuffer) {
         let sample_count = buf.len();
         if sample_count == 0 {
-            return None;
+            return;
         }
 
         let sample_overflow = self.overflow_on(sample_count);
@@ -133,20 +155,18 @@ impl StereoBuffer {
         // Commit the samples written
         self.samples_written += samples_to_write;
 
-        // Construct the buffer overflow if applicable
-        return if sample_overflow > 0 {
-            let mut buffer_overflow = StereoBuffer::new(sample_overflow);
+        // Fill in the buffer overflow if applicable
+        if sample_overflow > 0 {
             let overflow_end = samples_to_write + sample_overflow;
-            let overflown = &buf[samples_to_write..overflow_end];
-            buffer_overflow.copy_from_slices(overflown, overflown);
-            Some(buffer_overflow)
-        } else {
-            None
-        };
+            remainder.copy_from_slices(
+                &buf[samples_to_write..overflow_end],
+                &buf[samples_to_write..overflow_end],
+            );
+        }
     }
 
-    /// Similar to copy_from_slices, but it does not panic, instead it returns the overflow as a new StereoBuffer
-    pub fn copy_slice_stereo(&mut self, left: &[f32], right: &[f32]) -> Option<StereoBuffer> {
+    /// Similar to copy_from_slices, but it does not panic, instead it fills an overflow buffer
+    pub fn copy_slice_stereo(&mut self, left: &[f32], right: &[f32], remainder: &mut StereoBuffer) {
         assert!(
             left.len() == right.len(),
             "Left and right channels must be the same length"
@@ -155,7 +175,7 @@ impl StereoBuffer {
         let sample_count = left.len();
 
         if sample_count == 0 {
-            return None;
+            return;
         }
 
         let sample_overflow = self.overflow_on(sample_count);
@@ -172,17 +192,13 @@ impl StereoBuffer {
         self.samples_written += samples_to_write;
 
         // Construct the buffer overflow if applicable
-        return if sample_overflow > 0 {
-            let mut buffer_overflow = StereoBuffer::new(sample_overflow);
+        if sample_overflow > 0 {
             let overflow_end = samples_to_write + sample_overflow;
-            buffer_overflow.copy_from_slices(
+            remainder.copy_from_slices(
                 &left[samples_to_write..overflow_end],
                 &right[samples_to_write..overflow_end],
             );
-            Some(buffer_overflow)
-        } else {
-            None
-        };
+        }
     }
 
     /// Swap the contents of this buffer with another, starting from the beginning of this buffer's copy_cursor
@@ -271,20 +287,22 @@ impl StereoBuffer {
     pub fn copy_from_audio_buffer(
         &mut self,
         buffer: &AudioBuffer<f32>,
-        spec: SignalSpec,
-    ) -> Option<StereoBuffer> {
+        remainder: &mut StereoBuffer,
+    ) {
+        let spec = buffer.spec();
+
         if spec.channels == Layout::Mono.into_channels() {
-            return self.copy_slice_mono(buffer.chan(0));
+            return self.copy_slice_mono(buffer.chan(0), remainder);
         }
 
         if spec.channels == Layout::Stereo.into_channels() {
-            return self.copy_slice_stereo(buffer.chan(0), buffer.chan(1));
+            return self.copy_slice_stereo(buffer.chan(0), buffer.chan(1), remainder);
         }
 
         // Average all channels into one and copy that into the left and right channels
         let mut mono = Self::buffer_with_size(buffer.frames());
         if mono.len() == 0 {
-            return None;
+            return;
         }
 
         let audio_planes = buffer.planes();
@@ -300,7 +318,48 @@ impl StereoBuffer {
             *sample /= f32_chan_cnt;
         }
 
-        return self.copy_slice_mono(mono.as_slice());
+        return self.copy_slice_mono(mono.as_slice(), remainder);
+    }
+
+    /// Given any AudioBuffer<S> copy in a unified way the contents to the internal buffer and return the overflow
+    ///
+    /// * Currently this always results in a copy before calling copy_from_audio_buffer
+    ///
+    /// TODO instead of converting the whole buffer immutably and applying copy_from_audio_buffer
+    /// TODO try iterating over the samples, converting each one to the correct type individually
+    /// TODO and increment the samples_written by 1 for each sample
+    /// TODO this function needs to take into account mono and stereo AudioBuffer signals similar to how copy_from_audio_buffer does it
+    fn copy_from_any_audio_buffer<S>(
+        &mut self,
+        input: &AudioBuffer<S>,
+        remainder: &mut StereoBuffer,
+    ) where
+        S: Sample + IntoSample<f32>,
+    {
+        let spec = *input.spec();
+        let mut converted = AudioBuffer::<f32>::new(input.capacity() as u64, spec);
+        input.convert(&mut converted);
+        self.copy_from_audio_buffer(&converted, remainder)
+    }
+
+    /// Given an AudioBufferRef of any S sample type, copy the contents to the internal buffer and return the overflow
+    pub fn copy_from_audio_buffer_ref(
+        &mut self,
+        buffer: &AudioBufferRef<'_>,
+        remainder: &mut StereoBuffer,
+    ) {
+        match buffer {
+            AudioBufferRef::F32(input) => self.copy_from_audio_buffer(input, remainder),
+            AudioBufferRef::U8(input) => self.copy_from_any_audio_buffer(input, remainder),
+            AudioBufferRef::U16(input) => self.copy_from_any_audio_buffer(input, remainder),
+            AudioBufferRef::U24(input) => self.copy_from_any_audio_buffer(input, remainder),
+            AudioBufferRef::U32(input) => self.copy_from_any_audio_buffer(input, remainder),
+            AudioBufferRef::S8(input) => self.copy_from_any_audio_buffer(input, remainder),
+            AudioBufferRef::S16(input) => self.copy_from_any_audio_buffer(input, remainder),
+            AudioBufferRef::S24(input) => self.copy_from_any_audio_buffer(input, remainder),
+            AudioBufferRef::S32(input) => self.copy_from_any_audio_buffer(input, remainder),
+            AudioBufferRef::F64(input) => self.copy_from_any_audio_buffer(input, remainder),
+        }
     }
 
     /// Pad the remainder of the buffer with silence

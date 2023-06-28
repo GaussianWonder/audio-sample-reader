@@ -62,43 +62,50 @@ fn copy_buffer_into_buffer() {
 #[test]
 fn copy_mono_slice_with_overflow() {
     let mut buffer = StereoBuffer::new(10);
-    let overflow = buffer.copy_slice_mono(a_test_vec(20).as_slice());
+    let mut overflow = StereoBuffer::new(10);
+    buffer.copy_slice_mono(a_test_vec(20).as_slice(), &mut overflow);
 
     assert_eq!(buffer.left, buffer.right);
     assert_eq!(buffer.left, a_test_vec(10));
 
-    assert!(overflow.is_some(), "There should be overflow!");
+    assert!(overflow.has_content(), "There should be overflow!");
 
-    if let Some(overflow) = overflow {
-        assert_eq!(overflow.left, overflow.right);
-        assert_eq!(overflow.left, a_test_vec(20)[10..]);
-        assert_eq!(overflow.total_capacity(), 20);
-        assert_eq!(overflow.capacity_left(), 0);
-    }
+    assert_eq!(overflow.left, overflow.right);
+    assert_eq!(overflow.left, a_test_vec(20)[10..]);
+    assert_eq!(overflow.total_capacity(), 20);
+    assert_eq!(overflow.capacity_left(), 0);
 }
 
 #[test]
 fn copy_stereo_slice_with_overflow() {
     let mut buffer = StereoBuffer::new(10);
-    let overflow = buffer.copy_slice_stereo(a_test_vec(20).as_slice(), b_test_vec(20).as_slice());
+    let mut overflow = StereoBuffer::new(10);
+    buffer.copy_slice_stereo(
+        a_test_vec(20).as_slice(),
+        b_test_vec(20).as_slice(),
+        &mut overflow,
+    );
 
     assert_eq!(buffer.left, a_test_vec(10));
     assert_eq!(buffer.right, b_test_vec(20)[..10]);
 
-    assert!(overflow.is_some(), "There should be overflow!");
+    assert!(overflow.has_content(), "There should be overflow!");
 
-    if let Some(overflow) = overflow {
-        assert_eq!(overflow.left, a_test_vec(20)[10..]);
-        assert_eq!(overflow.right, b_test_vec(20)[10..]);
-        assert_eq!(overflow.total_capacity(), 20);
-        assert_eq!(overflow.capacity_left(), 0);
-    }
+    assert_eq!(overflow.left, a_test_vec(20)[10..]);
+    assert_eq!(overflow.right, b_test_vec(20)[10..]);
+    assert_eq!(overflow.total_capacity(), 20);
+    assert_eq!(overflow.capacity_left(), 0);
 }
 
 #[test]
 fn swap_buffer_with_vec() {
     let mut buffer = StereoBuffer::new(20);
-    buffer.copy_slice_stereo(&b_test_vec(20)[..10], a_test_vec(10).as_slice());
+    let mut overflow = StereoBuffer::new(10);
+    buffer.copy_slice_stereo(
+        &b_test_vec(20)[..10],
+        a_test_vec(10).as_slice(),
+        &mut overflow,
+    );
 
     let mut vec = vec![b_test_vec(10), a_test_vec(20)[10..].to_vec()];
     buffer.swap_with_vec(&mut vec);
@@ -111,10 +118,18 @@ fn swap_buffer_with_vec() {
 #[test]
 fn swap_buffer_with_buffer() {
     let mut a_buffer = StereoBuffer::new(20);
-    a_buffer.copy_slice_stereo(&b_test_vec(20)[..10], a_test_vec(10).as_slice());
+    a_buffer.copy_slice_stereo(
+        &b_test_vec(20)[..10],
+        a_test_vec(10).as_slice(),
+        &mut StereoBuffer::_0(),
+    );
 
     let mut b_buffer = StereoBuffer::new(10);
-    b_buffer.copy_slice_stereo(b_test_vec(10).as_slice(), &a_test_vec(20)[10..]);
+    b_buffer.copy_slice_stereo(
+        b_test_vec(10).as_slice(),
+        &a_test_vec(20)[10..],
+        &mut StereoBuffer::_0(),
+    );
 
     a_buffer.swap_with_buffer(&mut b_buffer);
 
@@ -127,10 +142,18 @@ fn swap_buffer_with_buffer() {
 fn copy_consecutive() {
     let mut buffer = StereoBuffer::new(20);
 
-    buffer.copy_slice_stereo(a_test_vec(10).as_slice(), &b_test_vec(20)[..10]);
+    buffer.copy_slice_stereo(
+        a_test_vec(10).as_slice(),
+        &b_test_vec(20)[..10],
+        &mut StereoBuffer::_0(),
+    );
     assert_eq!(buffer.capacity_left(), 10);
     assert_eq!(buffer.overflow_on(20), 10);
-    buffer.copy_slice_stereo(&a_test_vec(20)[10..], &b_test_vec(20)[10..]);
+    buffer.copy_slice_stereo(
+        &a_test_vec(20)[10..],
+        &b_test_vec(20)[10..],
+        &mut StereoBuffer::_0(),
+    );
 
     assert_eq!(buffer.left, a_test_vec(20));
     assert_eq!(buffer.right, b_test_vec(20));
@@ -140,7 +163,7 @@ fn copy_consecutive() {
 #[test]
 fn pad_partial_buffer_with_silence() {
     let mut buffer = StereoBuffer::new(20);
-    buffer.copy_slice_stereo(&a_test_vec(10), &b_test_vec(10));
+    buffer.copy_slice_stereo(&a_test_vec(10), &b_test_vec(10), &mut StereoBuffer::_0());
     buffer.pad_silence();
     assert_eq!(buffer.capacity_left(), 0);
     assert!(buffer.left[10..].iter().all(|&x| x == 0f32));
