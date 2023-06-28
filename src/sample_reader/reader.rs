@@ -38,7 +38,7 @@ impl Reader {
         dec_opts: DecoderOptions,
     ) -> Result<Self, SampleLoadError> {
         let (track, format, decoder, meta) = prepare_sample_reader(
-            PathBuf::from(""),
+            path,
             MetadataOptions::default(),
             FormatOptions::default(),
             DecoderOptions::default(),
@@ -118,5 +118,56 @@ impl Reader {
         }
 
         Ok(buffer.written() - already_written + remainder.written())
+    }
+
+    fn reset_decoder(&mut self) {
+        self.decoder.reset()
+    }
+}
+
+/// Describes the reading capabilities of a sample reader
+///
+/// - Can read a buffer worth of content
+/// - Can be issued for subsets of the buffer for incremental consumption
+///
+/// The reader is required to be able to produce `n` samples of content when requested,
+/// but it is allowed to store a `multiple of n` samples internally.
+///
+/// The reader is not responsible of self issuing itself of further buffer reads when the
+/// end of the internal buffer is reached. This is the responsibility of the caller.
+pub trait SampleReader {
+    /// Read the a buffer worth of content
+    fn read_sync(&mut self) -> Result<(), SampleLoadError>;
+
+    /// Issue the next slice of samples for both channels
+    fn next_slice(&mut self) -> Result<(&[f32], &[f32]), SampleLoadError>;
+
+    /// A number between 0 and 1 indicating the percentage of the internal buffer that has been consumed
+    ///
+    /// This value can be used to determine when to issue a new buffer read.
+    fn percentage_consumed(&self) -> f32;
+}
+
+/// A reader which loads the full content of a sample into memory.
+///
+/// You should call `read` only once, since it will load the full content of the sample.
+///
+/// Sample issuing will eventually round robin.
+///
+/// The total capacity will be a multiple of the desired input buffer size
+pub struct FullReader {
+    reader: Reader,
+}
+
+impl FullReader {
+    pub fn new(
+        path: PathBuf,
+        meta_opts: MetadataOptions,
+        fmt_opts: FormatOptions,
+        dec_opts: DecoderOptions,
+    ) -> Result<Self, SampleLoadError> {
+        Ok(Self {
+            reader: Reader::new(path, meta_opts, fmt_opts, dec_opts)?,
+        })
     }
 }
