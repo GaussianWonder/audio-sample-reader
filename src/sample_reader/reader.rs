@@ -157,6 +157,7 @@ pub trait SampleReader {
 /// The total capacity will be a multiple of the desired input buffer size
 pub struct FullReader {
     reader: Reader,
+    current_buffer: StereoBuffer,
 }
 
 impl FullReader {
@@ -166,8 +167,10 @@ impl FullReader {
         fmt_opts: FormatOptions,
         dec_opts: DecoderOptions,
     ) -> Result<Self, SampleLoadError> {
-        Ok(Self {
-            reader: Reader::new(path, meta_opts, fmt_opts, dec_opts)?,
-        })
+        let reader = Reader::new(path, meta_opts, fmt_opts, dec_opts)?;
+        return Ok(Self {
+            reader,
+            current_buffer: StereoBuffer::new(0), // TODO find a way to compute the duration of the audio file
+        });
     }
 }

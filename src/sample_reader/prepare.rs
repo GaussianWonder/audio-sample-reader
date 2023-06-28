@@ -18,15 +18,16 @@ macro_rules! meta_err {
     }};
 }
 
+#[derive(Debug, Clone)]
 pub struct ReaderMeta {
-    path: PathBuf,
-    layout: Layout,
-    delay: u32,
-    padding: u32,
-    sample_rate: u32,
-    start_ts: u64,
-    time_base: TimeBase,
-    max_frames_per_packet: u64,
+    pub path: PathBuf,
+    pub layout: Layout,
+    pub delay: u32,
+    pub padding: u32,
+    pub sample_rate: u32,
+    pub start_ts: u64,
+    pub time_base: TimeBase,
+    pub max_frames_per_packet: u64,
 }
 
 fn prepare_media_source(path: &PathBuf) -> Result<MediaSourceStream, SampleLoadError> {
