@@ -70,6 +70,17 @@ impl StereoBuffer {
         self.channel_size = self.left.len();
     }
 
+    /// Reserve additional space in this buffer such that each channel's capacity is a multiple of alignment
+    pub fn align_to(&mut self, alignment: usize) -> usize {
+        if self.channel_size % alignment == 0 {
+            return 0;
+        }
+
+        let additional = alignment - self.channel_size % alignment;
+        self.reserve_exact(additional);
+        return additional;
+    }
+
     pub fn has_content(&self) -> bool {
         return self.samples_written > 0;
     }
