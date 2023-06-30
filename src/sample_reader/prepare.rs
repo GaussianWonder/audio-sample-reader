@@ -7,7 +7,7 @@ use symphonia::core::{
     io::MediaSourceStream,
     meta::MetadataOptions,
     probe::Hint,
-    units::TimeBase,
+    units::{Time, TimeBase},
 };
 
 use super::error::SampleLoadError;
@@ -27,7 +27,8 @@ pub struct ReaderMeta {
     pub sample_rate: u32,
     pub start_ts: u64,
     pub time_base: TimeBase,
-    pub max_frames_per_packet: u64,
+    pub max_samples_per_packet: Option<u64>,
+    pub n_samples: Option<u64>,
 }
 
 fn prepare_media_source(path: &PathBuf) -> Result<MediaSourceStream, SampleLoadError> {
@@ -113,9 +114,8 @@ pub fn prepare_sample_reader(
     let sample_rate = codec_params.sample_rate.ok_or(meta_err!["sample rate"])?;
     let start_ts = codec_params.start_ts;
     let time_base = codec_params.time_base.ok_or(meta_err!["time base"])?;
-    let max_frames_per_packet = codec_params
-        .max_frames_per_packet
-        .ok_or(meta_err!["max frames per packets"])?;
+    let max_samples_per_packet = codec_params.max_frames_per_packet;
+    let n_samples = codec_params.n_frames;
 
     Ok((
         track,
@@ -129,7 +129,8 @@ pub fn prepare_sample_reader(
             sample_rate,
             start_ts,
             time_base,
-            max_frames_per_packet,
+            max_samples_per_packet,
+            n_samples,
         },
     ))
 }
