@@ -6,7 +6,7 @@ use std::process::Command;
 
 use audio_reader::prelude::*;
 
-const ACCEPTABLE_FLOAT_ERROR: f64 = 0.0001; // Used when converting between int and float
+const ACCEPTABLE_FLOAT_ERROR: f64 = 0.0001; // Used when converting between different bit sized samples
 const ACCEPTABLE_ERROR: f64 = 0.000000000001; // Used when expecting identical values
 
 const INT_MONO_SINE: &str = "assets/int_mono_sine.wav";
@@ -108,7 +108,7 @@ fn channel_error(left: &[f32], right: &[f32]) -> Vec<f64> {
         .collect()
 }
 
-/// Get the first sample where the channel error is smaller than the threshold
+/// Get the first sample where the channel error is greater than the threshold
 fn error_smaller_than(left: &[f32], right: &[f32], threshold: f64) -> Option<usize> {
     channel_error(left, right)
         .iter()
@@ -184,6 +184,25 @@ fn assert_integrity(
     }
 }
 
+/// Generate a .wav sine wave, convert it with ffmpeg and test the integrity of the result against the error_threshold
+fn read_other_format(ext: &'static str, error_threshold: f64) {
+    stereo_float_sine();
+    let path = convert_audio_to(FLOAT_STEREO_SINE, ext);
+
+    let mut reader = default_reader(path);
+
+    reader.read_sync().unwrap();
+    assert_eq!(reader.buffer.capacity() % HOST_BUFFER_SIZE, 0);
+    assert_eq!(
+        reader.buffer.left.capacity(),
+        reader.buffer.right.capacity()
+    );
+
+    let pregen_sine = sine_float_samples();
+    assert_integrity(&pregen_sine, &pregen_sine, &reader.buffer, error_threshold);
+}
+
+/// Tests the reading capabilities against an external reader
 #[test]
 fn read_mono_int_wav() {
     mono_int_sine();
@@ -211,6 +230,7 @@ fn read_mono_int_wav() {
     );
 }
 
+/// Tests reading capabilities against an external reader
 #[test]
 fn read_stereo_float_wav() {
     stereo_float_sine();
@@ -239,38 +259,16 @@ fn read_stereo_float_wav() {
 #[test]
 fn read_stereo_mp3() {
     // TODO fails because of padding and delay which is not handled yet
-    stereo_float_sine();
-    let path = convert_audio_to(FLOAT_STEREO_SINE, "mp3");
-
-    let mut reader = default_reader(path);
-
-    reader.read_sync().unwrap();
-    assert_eq!(reader.buffer.capacity() % HOST_BUFFER_SIZE, 0);
-
-    let pregen_sine = sine_float_samples();
-    assert_integrity(
-        &pregen_sine,
-        &pregen_sine,
-        &reader.buffer,
-        ACCEPTABLE_FLOAT_ERROR,
-    );
+    read_other_format("mp3", ACCEPTABLE_FLOAT_ERROR);
 }
 
 #[test]
 fn read_stereo_flac() {
-    stereo_float_sine();
-    let path = convert_audio_to(FLOAT_STEREO_SINE, "flac");
+    read_other_format("flac", ACCEPTABLE_FLOAT_ERROR);
+}
 
-    let mut reader = default_reader(path);
-
-    reader.read_sync().unwrap();
-    assert_eq!(reader.buffer.capacity() % HOST_BUFFER_SIZE, 0);
-
-    let pregen_sine = sine_float_samples();
-    assert_integrity(
-        &pregen_sine,
-        &pregen_sine,
-        &reader.buffer,
-        ACCEPTABLE_FLOAT_ERROR,
-    );
+#[test]
+fn read_stereo_ogg() {
+    // TODO fails because of delay which is not handled yet
+    read_other_format("ogg", ACCEPTABLE_FLOAT_ERROR);
 }
