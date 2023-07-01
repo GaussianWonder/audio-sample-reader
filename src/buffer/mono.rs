@@ -39,6 +39,15 @@ impl MonoBuffer {
         }
     }
 
+    pub fn from(vec: Vec<f32>) -> Self {
+        let channel_size = vec.len();
+        Self {
+            buf: vec,
+            channel_size,
+            samples_written: 0,
+        }
+    }
+
     pub fn iter(&self) -> std::slice::Iter<'_, f32> {
         self.buf.iter()
     }
