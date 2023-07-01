@@ -140,6 +140,7 @@ impl Buffer for StereoBuffer {
     }
 
     fn channel_capacity(&self) -> usize {
+        debug_assert_eq!(self.left.channel_capacity(), self.right.channel_capacity());
         self.left.channel_capacity()
     }
 

@@ -155,7 +155,7 @@ pub trait SampleReader {
     fn read_sync(&mut self) -> Result<(), SampleLoadError>;
 
     /// Issue the next slice of samples for both channels
-    fn next_slice(&mut self) -> Result<(&[f32], &[f32]), SampleLoadError>;
+    fn next_slice(&mut self) -> (&[f32], &[f32]);
 
     /// Get the next sample from the requested channel
     // fn next_sample(&mut self) -> Result<f32, SampleLoadError>;
@@ -241,10 +241,13 @@ impl SampleReader for SyncFullReader {
         Ok(())
     }
 
-    fn next_slice(&mut self) -> Result<(&[f32], &[f32]), SampleLoadError> {
+    fn next_slice(&mut self) -> (&[f32], &[f32]) {
         let slices = self.buffer.slice(self.cursor, self.host_buffer_len);
         self.cursor += self.host_buffer_len;
-        Ok(slices)
+        if self.cursor > self.buffer.channel_capacity() {
+            self.cursor = 0;
+        }
+        slices
     }
 
     fn percentage_consumed(&self) -> f32 {

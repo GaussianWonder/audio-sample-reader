@@ -21,7 +21,6 @@ macro_rules! meta_err {
 #[derive(Debug, Clone)]
 pub struct ReaderMeta {
     pub path: PathBuf,
-    pub layout: Layout,
     pub delay: u32,
     pub padding: u32,
     pub sample_rate: u32,
@@ -99,16 +98,6 @@ pub fn prepare_sample_reader(
 
     let codec_params = decoder.codec_params();
 
-    let layout = codec_params
-        .channel_layout
-        .ok_or(meta_err!["channel layout"])?;
-
-    match layout {
-        Layout::Mono => Ok(()),
-        Layout::Stereo => Ok(()),
-        _ => Err(SampleLoadError::UnsupportedChannelLayout(layout)),
-    }?;
-
     let delay = codec_params.delay.unwrap_or(0);
     let padding = codec_params.padding.unwrap_or(0);
     let sample_rate = codec_params.sample_rate.ok_or(meta_err!["sample rate"])?;
@@ -123,7 +112,6 @@ pub fn prepare_sample_reader(
         decoder,
         ReaderMeta {
             path,
-            layout,
             delay,
             padding,
             sample_rate,
