@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use audio_reader::prelude::*;
 
-use audio_reader::{Buffer, SampleReader, StereoBuffer, SyncFullReader};
 use hound::{self, WavSpec};
 use std::f32::consts::PI;
 use std::i16;
+use std::path::PathBuf;
 
 const ACCEPTABLE_FLOAT_ERROR: f32 = 0.0001; // Used when converting between int and float
 const ACCEPTABLE_ERROR: f32 = 0.000000000001; // Used when expecting identical values

@@ -1,13 +1,12 @@
 use std::{fs::File, path::PathBuf};
 
 use symphonia::core::{
-    audio::Layout,
     codecs::{Decoder, DecoderOptions, CODEC_TYPE_NULL},
     formats::{FormatOptions, FormatReader, Track},
     io::MediaSourceStream,
     meta::MetadataOptions,
     probe::Hint,
-    units::{Time, TimeBase},
+    units::TimeBase,
 };
 
 use super::error::SampleLoadError;

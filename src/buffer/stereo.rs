@@ -61,10 +61,8 @@ impl StereoBuffer {
         debug_assert_eq!(overflow.left.capacity(), overflow.right.capacity());
         debug_assert_eq!(overflow.left.cursor(), overflow.right.cursor());
 
-        self.left
-            .append_slice_overflow(left, &mut overflow.left);
-        self.right
-            .append_slice_overflow(right, &mut overflow.right);
+        self.left.append_slice_overflow(left, &mut overflow.left);
+        self.right.append_slice_overflow(right, &mut overflow.right);
     }
 
     pub fn append_audio_buffer(&mut self, buffer: &AudioBuffer<f32>, overflow: &mut StereoBuffer) {
@@ -125,6 +123,8 @@ impl StereoBuffer {
             }
         }
     }
+
+    // TODO iterate over buffer by Channel parameter
 }
 
 impl Buffer for StereoBuffer {

@@ -1,5 +1,6 @@
 pub mod buffer;
-pub mod sample_reader;
+pub mod reader;
 
-pub use buffer::*;
-pub use sample_reader::*;
+pub mod prelude {
+    pub use crate::{buffer::prelude::*, reader::prelude::*};
+}

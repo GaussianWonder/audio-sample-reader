@@ -1,7 +1,4 @@
-use audio_reader::{
-    buffer::{Buffer, StereoBuffer},
-    buffer_with_size,
-};
+use audio_reader::buffer::prelude::*;
 
 fn a_test_vec(len: usize) -> Vec<f32> {
     let mut vec = Vec::with_capacity(len);

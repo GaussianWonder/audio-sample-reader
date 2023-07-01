@@ -1,10 +1,6 @@
-mod mono;
-mod stereo;
-mod utils;
-
-pub use mono::*;
-pub use stereo::*;
-pub use utils::*;
+pub mod mono;
+pub mod stereo;
+pub mod utils;
 
 pub enum BufferLayout {
     Mono,
@@ -86,4 +82,12 @@ pub trait Buffer {
     ///
     /// Attepmpts to **write into** or **read from** this buffer will result in a panic unless allocating more space.
     fn _0() -> Self;
+}
+
+pub mod prelude {
+    pub use super::mono::MonoBuffer;
+    pub use super::stereo::StereoBuffer;
+    pub use super::utils::*;
+    pub use super::Buffer;
+    pub use super::BufferLayout;
 }
