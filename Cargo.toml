@@ -8,7 +8,7 @@ version = "0.0.1"
 
 [dependencies]
 rubato = "0.14.0"
-symphonia = "0.5.3"
+symphonia = {version = "0.5.3", features = ["all"]}
 
 [dev-dependencies]
 hound = "3.5.0"

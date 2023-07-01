@@ -45,12 +45,8 @@ impl Reader {
         fmt_opts: FormatOptions,
         dec_opts: DecoderOptions,
     ) -> Result<Self, SampleLoadError> {
-        let (track, format, decoder, meta) = prepare_sample_reader(
-            path,
-            MetadataOptions::default(),
-            FormatOptions::default(),
-            DecoderOptions::default(),
-        )?;
+        let (track, format, decoder, meta) =
+            prepare_sample_reader(path, meta_opts, fmt_opts, dec_opts)?;
 
         Ok(Self {
             meta,
