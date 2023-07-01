@@ -1,11 +1,10 @@
 mod common;
 
+use audio_reader::prelude::*;
 use common::*;
 
 use std::i16;
 use std::path::PathBuf;
-
-use audio_reader::prelude::*;
 
 /// Get a SyncFullReader for a given file
 fn default_reader(path: PathBuf) -> SyncFullReader {
