@@ -1,5 +1,4 @@
 use std::{mem::size_of, path::PathBuf};
-
 use symphonia::core::{codecs::DecoderOptions, formats::FormatOptions, meta::MetadataOptions};
 
 use super::{error::SampleLoadError, Reader, ReadingProjection, SampleReader};
