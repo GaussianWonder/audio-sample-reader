@@ -1,5 +1,5 @@
 [package]
-authors = ["Virghileanu Teodor <teo.virghi@yahoo.ro>"]
+authors = ["Virghileanu Teodor <teo.virghi@gmail.com>"]
 description = "An utility library to load sounds"
 edition = "2021"
 homepage = "https://github.com/GaussianWonder"
